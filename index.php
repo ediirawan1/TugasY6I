@@ -8,9 +8,9 @@ if (!isset($_SESSION['log'])) {
 
 if (isset($_POST['addDataBarang'])) {
     $namaBarang = trim($_POST['nama_barang']);
-    $jumlahBarang = intval($_POST['jumlah_barang']);
+    $jumlahBarang = 0;
 
-    if (empty($namaBarang) || $jumlahBarang <= 0) {
+    if (empty($namaBarang)) {
     
     } else {
         $result = mysqli_query($conn, "SELECT MAX(kode_barang) as max_kode FROM data_barang");
@@ -166,7 +166,7 @@ if (isset($_POST['deletebarang'])) {
            <div class="card mb-4">
             <div class="card-header">
               <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#myModal">
-                Tambah Barang
+                Tambah Data Barang
               </button>
             </div>
             <div class="card-body">
@@ -290,8 +290,8 @@ if (isset($_POST['deletebarang'])) {
       <div class="modal-body">
         <input type="text" name="nama_barang" placeholder="Nama Barang" class="form-control" required>
         <br>
-        <input type="number" name="jumlah_barang"  placeholder="Jumlah Barang" class="form-control" required>
-        <br>
+        <!-- <input type="number" name="jumlah_barang"  placeholder="Jumlah Barang" class="form-control" required>
+        <br> -->
         <button type="submit" class="btn btn-primary" name="addDataBarang">Submit</button>
       </div>
       </form>

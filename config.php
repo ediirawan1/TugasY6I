@@ -1,10 +1,10 @@
 <?php
 session_start();
 
-$host = "localhost";
-$username = "root";
-$password = "";
-$database = "inventory_web";
+$host = "javavisual.jux.in";
+$username = "javavisu_root";
+$password = "JavaVisual123!@#";
+$database = "javavisu_web";
 
 $conn = mysqli_connect($host, $username, $password, $database);
 

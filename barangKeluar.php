@@ -272,7 +272,7 @@ if (isset($_POST['barangKeluar'])) {
       <form method="post">
       <div class="modal-body">
         
-          <select name="pilihBarang" class="form-control">
+          <select name="pilihBarang" class="form-select">
             <?php
               $ambildata = mysqli_query($conn, "SELECT * FROM data_barang");
               while ($fetcharray = mysqli_fetch_array($ambildata)) {
@@ -286,7 +286,7 @@ if (isset($_POST['barangKeluar'])) {
             ?>
           </select>
         <br>
-        <input type="number" name="jumlah_barang"  placeholder="Jumlah Barang" class="form-control" required>
+        <input type="number" name="jumlah_barang"  placeholder="Jumlah Barang" class="form-control" required min="0">
         <br>
         <input type="text" name="keterangan" placeholder="Keterangan" class="form-control" required>
         <br>

@@ -159,7 +159,7 @@ if (isset($_POST['updatebarangmasuk'])) {
             <div class="card mb-4">
               <div class="card-header">
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#myModal">
-                  Tambah Barang 
+                  Tambah Barang Masuk
                 </button>
               </div>
               <div class="card-body">
@@ -296,7 +296,7 @@ if (isset($_POST['updatebarangmasuk'])) {
       <form method="post">
       <div class="modal-body">
         
-          <select name="pilihBarang" class="form-control">
+          <select name="pilihBarang" class="form-select">
             <?php
               $ambildata = mysqli_query($conn, "SELECT * FROM data_barang");
               while ($fetcharray = mysqli_fetch_array($ambildata)) {
@@ -310,7 +310,7 @@ if (isset($_POST['updatebarangmasuk'])) {
             ?>
           </select>
         <br>
-        <input type="number" name="jumlah_barang"  placeholder="Jumlah Barang" class="form-control" required>
+        <input type="number" name="jumlah_barang"  placeholder="Jumlah Barang" class="form-control" required min="0">
         <br>
         <input type="text" name="penerima" placeholder="Penerima" class="form-control" required>
         <br>
