@@ -24,3 +24,13 @@ window.addEventListener('DOMContentLoaded', event => {
     }
 
 });
+
+
+document.addEventListener("DOMContentLoaded", function () {
+    // Cek apakah atribut data-success diatur ke 'true'
+    if (document.body.getAttribute("data-success") === "true") {
+        // Tampilkan modal sukses
+        var successModal = new bootstrap.Modal(document.getElementById("successModal"));
+        successModal.show();
+    }
+});
