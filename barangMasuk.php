@@ -16,9 +16,25 @@ if (isset($_POST['barangMasuk'])) {
   $namaBarang = $ambilBarang["nama_barang"];
   $tambahBarang = $stokSekarang + $jumlahBarang;
 
+  $getLastKode = mysqli_query($conn, "SELECT MAX(kode_barang_masuk) AS kodeTerbesar FROM barang_masuk");
+  $dataKode = mysqli_fetch_assoc($getLastKode);
+  $kodeTerbesar = $dataKode['kodeTerbesar'];
+
+  $getLastKode = mysqli_query($conn, "SELECT MAX(kode_barang_masuk) AS kodeTerbesar FROM barang_masuk");
+  $dataKode = mysqli_fetch_assoc($getLastKode);
+  $kodeTerbesar = $dataKode['kodeTerbesar'];
+
+  if ($kodeTerbesar) {
+      $urutan = (int) substr($kodeTerbesar, 2, 4);
+      $urutan++;
+  } else {
+      $urutan = 1;
+  }
+  $kodeBarangMasukBaru = 'BM' . str_pad($urutan, 4, '0', STR_PAD_LEFT);
+
   $tambahBarangMasuk = mysqli_query($conn,
-    "INSERT INTO barang_masuk (kode_barang, nama_barang, tanggal, penerima, jumlah_barang_masuk)
-     VALUES ('$pilihBarang', '$namaBarang', NOW(), '$penerima', '$jumlahBarang')"
+    "INSERT INTO barang_masuk (kode_barang_masuk, kode_barang, nama_barang, tanggal, penerima, jumlah_barang_masuk)
+     VALUES ('$kodeBarangMasukBaru', '$pilihBarang', '$namaBarang', NOW(), '$penerima', '$jumlahBarang')"
   );
 
   $updateStok = mysqli_query($conn,
@@ -38,24 +54,22 @@ if (isset($_POST['barangMasuk'])) {
 }
 
 if (isset($_POST['updatebarangmasuk'])) {
-    $kodebarang = $_POST['kode_barang'];
-    $tanggal = $_POST['tanggal'];
+    $kode_barang_masuk = $_POST['kode_barang_masuk'];
     $jumlah_baru = intval($_POST['jumlah_barang']);
 
-    // Ambil data lama dari barang_masuk berdasarkan kode_barang + tanggal
-    $cek = mysqli_query($conn, "SELECT * FROM barang_masuk WHERE kode_barang = '$kodebarang' AND tanggal = '$tanggal' LIMIT 1");
+    $cek = mysqli_query($conn, "SELECT * FROM barang_masuk WHERE kode_barang_masuk = '$kode_barang_masuk' LIMIT 1");
     $data_lama = mysqli_fetch_array($cek);
     $jumlah_lama = intval($data_lama['jumlah_barang_masuk']);
+    $kode_barang = $data_lama['kode_barang'];
 
-    // Hitung selisih dan update stok di data_barang
     $selisih = $jumlah_baru - $jumlah_lama;
+
     $update_stok = mysqli_query($conn, 
-        "UPDATE data_barang SET jumlah_barang = jumlah_barang + $selisih WHERE kode_barang = '$kodebarang'"
+        "UPDATE data_barang SET jumlah_barang = jumlah_barang + $selisih WHERE kode_barang = '$kode_barang'"
     );
 
-    // Update jumlah_barang_masuk
     $update_masuk = mysqli_query($conn,
-        "UPDATE barang_masuk SET jumlah_barang_masuk = '$jumlah_baru' WHERE kode_barang = '$kodebarang' AND tanggal = '$tanggal' LIMIT 1"
+        "UPDATE barang_masuk SET jumlah_barang_masuk = '$jumlah_baru' WHERE kode_barang_masuk = '$kode_barang_masuk' LIMIT 1"
     );
 
     if ($update_stok && $update_masuk) {
@@ -66,6 +80,56 @@ if (isset($_POST['updatebarangmasuk'])) {
         exit();
     } else {
         echo "<script>alert('Gagal update data!'); window.location.href = 'barangMasuk.php';</script>";
+    }
+}
+
+if (isset($_POST['deletebarang'])) {
+    $kodeBarangMasuk = $_POST['kode_barang_masuk']; 
+
+    try {
+        $getData = mysqli_query($conn, "SELECT * FROM barang_masuk WHERE kode_barang_masuk = '$kodeBarangMasuk'");
+        $data = mysqli_fetch_assoc($getData);
+
+        if (!$data) {
+            throw new Exception('Data barang masuk tidak ditemukan!');
+        }
+
+        $kodeBarang = $data['kode_barang'];
+        $jumlahMasuk = intval($data['jumlah_barang_masuk']);
+
+        $updateStok = mysqli_query($conn, "UPDATE data_barang SET jumlah_barang = jumlah_barang - $jumlahMasuk WHERE kode_barang = '$kodeBarang'");
+        if (!$updateStok) {
+            throw new Exception('Gagal mengurangi stok barang: ' . mysqli_error($conn));
+        }
+
+        $deleteBarangMasuk = mysqli_query($conn, "DELETE FROM barang_masuk WHERE kode_barang_masuk = '$kodeBarangMasuk'");
+        if (!$deleteBarangMasuk) {
+            throw new Exception('Gagal menghapus data barang masuk: ' . mysqli_error($conn));
+        }
+
+        $checkBarangMasuk = mysqli_query($conn, "SELECT * FROM barang_masuk WHERE kode_barang = '$kodeBarang'");
+        if (mysqli_num_rows($checkBarangMasuk) === 0) {
+            $deleteBarang = mysqli_query($conn, "DELETE FROM data_barang WHERE kode_barang = '$kodeBarang'");
+            if (!$deleteBarang) {
+                throw new Exception('Gagal menghapus data barang: ' . mysqli_error($conn));
+            }
+        }
+        echo "<script>
+                alert('Data berhasil dihapus!');
+                window.location.href = 'barangMasuk.php';
+              </script>";
+    } catch (Exception $e) {
+        if (strpos($e->getMessage(), 'a foreign key constraint fails') !== false) {
+            echo "<script>
+                    alert('Gagal menghapus! Data masih digunakan di tabel lain.');
+                    window.location.href = 'barangMasuk.php';
+                  </script>";
+        } else {
+            echo "<script>
+                    alert('Terjadi kesalahan saat menghapus: " . addslashes($e->getMessage()) . "');
+                    window.location.href = 'barangMasuk.php';
+                  </script>";
+        }
     }
 }
 
@@ -167,6 +231,7 @@ if (isset($_POST['updatebarangmasuk'])) {
                 <thead>
                   <tr>
                     <th>No</th>
+                    <th>Kode Barang Masuk</th>
                     <th>Kode Barang</th>
                     <th>Nama Barang</th>
                     <th>Jumlah Barang Masuk</th>
@@ -180,6 +245,7 @@ if (isset($_POST['updatebarangmasuk'])) {
                       $result = mysqli_query($conn, "SELECT * FROM barang_masuk ORDER BY kode_barang ASC");
                       $no = 1;
                       while ($row = mysqli_fetch_assoc($result)) {
+                        $kodebarangmasuk = htmlspecialchars($row['kode_barang_masuk']);
                         $kodebarang = htmlspecialchars($row['kode_barang']);
                         $namabarang = htmlspecialchars($row['nama_barang']);
                         $jumlahbarang = intval($row['jumlah_barang_masuk']);
@@ -188,47 +254,47 @@ if (isset($_POST['updatebarangmasuk'])) {
                       ?>
                       <tr>
                         <td><?= $no++; ?></td>
+                        <td><?= $kodebarangmasuk; ?></td>
                         <td><?= $kodebarang; ?></td>
                         <td><?= $namabarang; ?></td>
                         <td><?= $jumlahbarang; ?></td>
                         <td><?= $tanggal; ?></td>
                         <td><?= $penerima; ?></td>
                         <td>
-                          <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#edit<?= $kodebarang; ?>">
-                            Edit
-                          </button>
-                          <input type="hidden" name="deletekodebarang" value="<?= $kodebarang; ?>">
-                          <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#delete<?= $kodebarang; ?>">
-                             Delete
-                          </button>
-                          </td>
-                        </tr>
+                          <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#edit<?= $kodebarangmasuk; ?>">
+                          Edit
+                        </button>
+                        <input type="hidden" name="deletekodebarangmasuk" value="<?= $kodebarangmasuk; ?>">
+                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#delete<?= $kodebarangmasuk; ?>">
+                          Delete
+                        </button>
+                      </td>
+                      </tr>
 
                         <!-- Modal Edit -->
-                        <div class="modal fade" id="edit<?= $kodebarang; ?>">
+                        <div class="modal fade" id="edit<?= $kodebarangmasuk; ?>">
                           <div class="modal-dialog">
                             <div class="modal-content">
-                                <div class="modal-header">
-                                  <h4 class="modal-title">Edit Barang</h4>
-                                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                              <div class="modal-header">
+                                <h4 class="modal-title">Edit Barang</h4>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                              </div>
+                              <form method="post">
+                                <div class="modal-body">
+                                  <input type="hidden" name="kode_barang_masuk" value="<?= $kodebarangmasuk; ?>">
+                                  <br>
+                                  <input type="text" name="nama_barang" value="<?= $namabarang; ?>" class="form-control" readonly>
+                                  <br>
+                                  <input type="text" name="jumlah_barang" value="<?= $jumlahbarang; ?>" class="form-control" required>
+                                  <br>
+                                  <button type="submit" class="btn btn-primary" name="updatebarangmasuk">Submit</button>
                                 </div>
-                                  <form method="post">
-                                    <div class="modal-body">
-                                      <input type="hidden" name="kode_barang" value="<?= $kodebarang; ?>">
-                                      <input type="hidden" name="tanggal" value="<?= $tanggal; ?>">
-                                      <br>  
-                                      <input type="text" name="nama_barang" value="<?= $namabarang; ?>" class="form-control" readonly>
-                                      <br>
-                                      <input type="text" name="jumlah_barang" value="<?= $jumlahbarang; ?>" class="form-control" required>
-                                      <br>
-                                      <button type="submit" class="btn btn-primary" name="updatebarangmasuk">Submit</button>
-                                    </div>
-                                  </form>
+                              </form>
                             </div>
                           </div>
-                         </div>
+                        </div>
                           <!-- Modal Delete -->
-                        <div class="modal fade" id="delete<?= $kodebarang; ?>">
+                        <div class="modal fade" id="delete<?= $kodebarangmasuk; ?>">
                           <div class="modal-dialog">
                             <div class="modal-content">
                               <div class="modal-header">
@@ -238,7 +304,7 @@ if (isset($_POST['updatebarangmasuk'])) {
                               <form method="post">
                               <div class="modal-body">
                                 Apakah anda yakin ingin menghapus <strong><?= $namabarang; ?></strong>?
-                                <input type="hidden" name="kode_barang" value="<?= $kodebarang; ?>">
+                                <input type="hidden" name="kode_barang_masuk" value="<?= $kodebarangmasuk; ?>">
                                 <br><br>
                                 <button type="submit" class="btn btn-danger" name="deletebarang">Hapus</button>
                               </div>

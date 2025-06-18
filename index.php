@@ -67,6 +67,8 @@ if (isset($_POST['deletebarang'])) {
     mysqli_query($conn, "DELETE FROM barang_masuk WHERE kode_barang='$kodebarang'");
 
     // Baru hapus dari data_barang
+    try {
+    
     $delete = mysqli_query($conn, "DELETE FROM data_barang WHERE kode_barang='$kodebarang'");
 
     if ($delete) {
@@ -74,9 +76,23 @@ if (isset($_POST['deletebarang'])) {
                 alert('Data berhasil dihapus!');
                 window.location.href = 'index.php';
               </script>";
+      } else {
+          throw new Exception(mysqli_error($conn));
+      }
+    } catch (Exception $e) {
+    if (strpos($e->getMessage(), 'a foreign key constraint fails') !== false) {
+        echo "<script>
+                alert('Gagal menghapus! Data masih digunakan di tabel lain.');
+                window.location.href = 'index.php';
+              </script>";
     } else {
-        echo "<script>alert('Gagal menghapus data');</script>";
+        echo "<script>
+                alert('Terjadi kesalahan saat menghapus: " . addslashes($e->getMessage()) . "');
+                window.location.href = 'index.php';
+              </script>";
     }
+  }
+
 }
 
 ?>
@@ -95,6 +111,7 @@ if (isset($_POST['deletebarang'])) {
     <meta name="author" content="" />
     <title>Data Barang</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <link href="css/styles.css" rel="stylesheet" />
     <script
       src="https://use.fontawesome.com/releases/v6.3.0/js/all.js"
@@ -272,6 +289,7 @@ if (isset($_POST['deletebarang'])) {
       crossorigin="anonymous"
     ></script>
     <script src="js/datatables-simple-demo.js"></script>
+
   </body>
 
 <!-- The Modal -->

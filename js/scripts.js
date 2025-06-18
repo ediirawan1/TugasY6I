@@ -34,3 +34,9 @@ document.addEventListener("DOMContentLoaded", function () {
         successModal.show();
     }
 });
+
+document.querySelector('form').addEventListener('submit', function () {
+        setTimeout(function () {
+            window.location.reload();
+        }, 500); 
+});

@@ -10,6 +10,11 @@ if (isset($_POST['barangKeluar'])) {
     $keterangan = $_POST['keterangan'];
     $jumlahBarang = $_POST['jumlah_barang'];
 
+    if (!is_numeric($jumlahBarang) || $jumlahBarang <= 0) {
+        echo "<script>alert('Jumlah barang harus berupa angka positif!'); window.location='barangKeluar.php';</script>";
+        exit;
+    }
+
     $cekBarang = mysqli_query($conn, "SELECT * FROM data_barang WHERE kode_barang='$pilihBarang'");
     $ambilBarang = mysqli_fetch_array($cekBarang);
 
@@ -22,27 +27,129 @@ if (isset($_POST['barangKeluar'])) {
     $namaBarang = $ambilBarang["nama_barang"];
     $kurangiBarang = $stokSekarang - $jumlahBarang;
 
-    if ($jumlahBarang > $stokSekarang) {
-        echo "<script>alert('Stok tidak mencukupi!'); window.location='barangKeluar.php';</script>";
-        exit;
+  if ($jumlahBarang > $stokSekarang) {
+    echo "<script>alert('Stok tidak mencukupi!'); window.location='barangKeluar.php';</script>";
+    exit;
+  }
+
+
+    $getLastKode = mysqli_query($conn, "SELECT MAX(kode_barang_keluar) AS kodeTerbesar FROM barang_keluar");
+    $dataKode = mysqli_fetch_assoc($getLastKode);
+    $kodeTerbesar = $dataKode['kodeTerbesar'];
+
+    if ($kodeTerbesar) {
+        $urutan = (int) substr($kodeTerbesar, 2, 4);
+        $urutan++;
+    } else {
+        $urutan = 1;
     }
 
+    $kodeBarangKeluarBaru = 'BK' . str_pad($urutan, 4, '0', STR_PAD_LEFT);
+
     $insertKeluar = mysqli_query($conn, "
-        INSERT INTO barang_keluar (kode_barang, nama_barang, tanggal, keterangan, jumlah_barang_keluar)
-        VALUES ('$pilihBarang', '$namaBarang', NOW(), '$keterangan', '$jumlahBarang')
+        INSERT INTO barang_keluar (kode_barang_keluar, kode_barang, nama_barang, tanggal, keterangan, jumlah_barang_keluar)
+        VALUES ('$kodeBarangKeluarBaru', '$pilihBarang', '$namaBarang', NOW(), '$keterangan', '$jumlahBarang')
     ");
 
     $updateStok = mysqli_query($conn, "
-        UPDATE data_barang SET jumlah_barang = '$kurangiBarang' WHERE kode_barang = '$pilihBarang'
+        UPDATE data_barang 
+        SET jumlah_barang = jumlah_barang - $jumlahBarang 
+        WHERE kode_barang = '$pilihBarang'
     ");
 
+
     if ($insertKeluar && $updateStok) {
-        header('location:barangKeluar.php');
+        echo "<script>
+                alert('Barang keluar berhasil disimpan!');
+                window.location.href = 'barangKeluar.php';
+              </script>";
         exit;
     } else {
-        echo "<script>alert('Gagal menyimpan data');</script>";
+        echo "<script>alert('Gagal menyimpan data'); window.location='barangKeluar.php';</script>";
     }
 }
+
+if (isset($_POST['updatebarangkeluar'])) {
+    $kode_barang_keluar = $_POST['kode_barang_keluar'];
+    $jumlah_baru = intval($_POST['jumlah_barang']);
+    $keterangan = mysqli_real_escape_string($conn, $_POST['keterangan']);
+
+    $cek = mysqli_query($conn, "SELECT * FROM barang_keluar WHERE kode_barang_keluar = '$kode_barang_keluar' LIMIT 1");
+
+    if ($cek && mysqli_num_rows($cek) > 0) {
+        $data_lama = mysqli_fetch_assoc($cek);
+        $jumlah_lama = intval($data_lama['jumlah_barang_keluar']);
+        $kode_barang = $data_lama['kode_barang'];
+
+        $selisih = $jumlah_baru - $jumlah_lama;
+
+        $stok_query = mysqli_query($conn, "SELECT jumlah_barang FROM data_barang WHERE kode_barang = '$kode_barang'");
+        $stok_data = mysqli_fetch_assoc($stok_query);
+        $stok_sekarang = intval($stok_data['jumlah_barang']);
+
+        if ($selisih > $stok_sekarang) {
+            echo "<script>alert('Stok tidak mencukupi untuk update jumlah keluar!'); window.location.href='barangKeluar.php';</script>";
+            exit;
+        }
+
+        $update_stok = mysqli_query($conn, 
+            "UPDATE data_barang 
+             SET jumlah_barang = jumlah_barang - $selisih 
+             WHERE kode_barang = '$kode_barang'"
+        );
+
+        $update_keluar = mysqli_query($conn, 
+            "UPDATE barang_keluar 
+             SET jumlah_barang_keluar = '$jumlah_baru', keterangan = '$keterangan' 
+             WHERE kode_barang_keluar = '$kode_barang_keluar'"
+        );
+
+        if ($update_stok && $update_keluar) {
+            echo "<script>
+                alert('Data berhasil diupdate!');
+                window.location.href = 'barangKeluar.php';
+            </script>";
+        } else {
+            echo "<script>
+                alert('Gagal update data!');
+                window.location.href = 'barangKeluar.php';
+            </script>";
+        }
+
+    } else {
+        echo "<script>alert('Data barang keluar tidak ditemukan!'); window.location.href='barangKeluar.php';</script>";
+    }
+}
+
+
+if (isset($_POST['deletebarang'])) {
+    $kode_barang_keluar = $_POST['kode_barang_keluar'];
+
+    $cek = mysqli_query($conn, "SELECT * FROM barang_keluar WHERE kode_barang_keluar = '$kode_barang_keluar'");
+    $data = mysqli_fetch_array($cek);
+
+    if (!$data) {
+        echo "<script>alert('Data tidak ditemukan!'); window.location='barangKeluar.php';</script>";
+        exit;
+    }
+
+    $jumlah_keluar = $data['jumlah_barang_keluar'];
+    $kode_barang = $data['kode_barang']; 
+    $updateStok = mysqli_query($conn, "UPDATE data_barang SET jumlah_barang = jumlah_barang + $jumlah_keluar WHERE kode_barang = '$kode_barang'");
+    if (!$updateStok) {
+        echo "<script>alert('Gagal mengupdate stok!'); window.location='barangKeluar.php';</script>";
+        exit;
+    }
+
+    $hapus = mysqli_query($conn, "DELETE FROM barang_keluar WHERE kode_barang_keluar = '$kode_barang_keluar'");
+    if ($hapus) {
+        echo "<script>alert('Data berhasil dihapus!'); window.location='barangKeluar.php';</script>";
+    } else {
+        echo "<script>alert('Gagal menghapus data!'); window.location='barangKeluar.php';</script>";
+    }
+}
+
+
 ?>
 
 <!DOCTYPE html>
@@ -141,6 +248,7 @@ if (isset($_POST['barangKeluar'])) {
                 <thead>
                   <tr>
                     <th>No</th>
+                    <th>Kode Barang Keluar</th>
                     <th>Kode Barang</th>
                     <th>Nama Barang</th>
                     <th>Jumlah Barang Keluar</th>
@@ -154,6 +262,7 @@ if (isset($_POST['barangKeluar'])) {
                       $result = mysqli_query($conn, "SELECT * FROM barang_keluar ORDER BY kode_barang ASC");
                       $no = 1;
                       while ($row = mysqli_fetch_assoc($result)) {
+                        $kodebarangkeluar = htmlspecialchars($row['kode_barang_keluar']);
                         $kodebarang = htmlspecialchars($row['kode_barang']);
                         $namabarang = htmlspecialchars($row['nama_barang']);
                         $jumlahbarang = intval($row['jumlah_barang_keluar']);
@@ -162,24 +271,25 @@ if (isset($_POST['barangKeluar'])) {
                       ?>
                       <tr>
                         <td><?= $no++; ?></td>
+                        <td><?= $kodebarangkeluar; ?></td>
                         <td><?= $kodebarang; ?></td>
                         <td><?= $namabarang; ?></td>
                         <td><?= $jumlahbarang; ?></td>
                         <td><?= $tanggal; ?></td>
                         <td><?= $keterangan; ?></td>
                         <td>
-                          <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#edit<?= $kodebarang; ?>">
+                          <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#edit<?= $kodebarangkeluar; ?>">
                             Edit
                           </button>
-                          <input type="hidden" name="deletekodebarang" value="<?= $kodebarang; ?>">
-                          <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#delete<?= $kodebarang; ?>">
+                          <input type="hidden" name="deletekodebarang" value="<?= $kodebarangkeluar; ?>">
+                          <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#delete<?= $kodebarangkeluar; ?>">
                              Delete
                           </button>
                           </td>
                         </tr>
 
                         <!-- Modal Edit -->
-                        <div class="modal fade" id="edit<?= $kodebarang; ?>">
+                        <div class="modal fade" id="edit<?= $kodebarangkeluar; ?>">
                           <div class="modal-dialog">
                             <div class="modal-content">
                                 <div class="modal-header">
@@ -188,8 +298,7 @@ if (isset($_POST['barangKeluar'])) {
                                 </div>
                                   <form method="post">
                                     <div class="modal-body">
-                                      <input type="hidden" name="kode_barang" value="<?= $kodebarang; ?>">
-                                      <input type="hidden" name="tanggal" value="<?= $tanggal; ?>">
+                                      <input type="hidden" name="kode_barang_keluar" value="<?= $kodebarangkeluar; ?>">
                                       <br>  
                                       <input type="text" name="nama_barang" value="<?= $namabarang; ?>" class="form-control" readonly>
                                       <br>
@@ -197,14 +306,14 @@ if (isset($_POST['barangKeluar'])) {
                                       <br>
                                       <input type="text" name="keterangan" value="<?= $keterangan; ?>" class="form-control" required>
                                       <br>
-                                      <button type="submit" class="btn btn-primary" name="updatebarangmasuk">Submit</button>
+                                      <button type="submit" class="btn btn-primary" name="updatebarangkeluar">Submit</button>
                                     </div>
                                   </form>
                             </div>
                           </div>
                          </div>
                           <!-- Modal Delete -->
-                        <div class="modal fade" id="delete<?= $kodebarang; ?>">
+                        <div class="modal fade" id="delete<?= $kodebarangkeluar; ?>">
                           <div class="modal-dialog">
                             <div class="modal-content">
                               <div class="modal-header">
@@ -214,7 +323,7 @@ if (isset($_POST['barangKeluar'])) {
                               <form method="post">
                               <div class="modal-body">
                                 Apakah anda yakin ingin menghapus <strong><?= $namabarang; ?></strong>?
-                                <input type="hidden" name="kode_barang" value="<?= $kodebarang; ?>">
+                                <input type="hidden" name="kode_barang_keluar" value="<?= $kodebarangkeluar; ?>">
                                 <br><br>
                                 <button type="submit" class="btn btn-danger" name="deletebarang">Hapus</button>
                               </div>
@@ -286,7 +395,7 @@ if (isset($_POST['barangKeluar'])) {
             ?>
           </select>
         <br>
-        <input type="number" name="jumlah_barang"  placeholder="Jumlah Barang" class="form-control" required min="0">
+        <input type="number" name="jumlah_barang"  placeholder="Jumlah Barang" class="form-control" required min="1">
         <br>
         <input type="text" name="keterangan" placeholder="Keterangan" class="form-control" required>
         <br>
